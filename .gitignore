@@ -1,0 +1,13 @@
+.DS_Store
+Password+ID/
+Context/
+*.env
+*.key
+*.pem
+*.p12
+*.json
+secrets/
+private/
+config/
+node_modules/
+dist/
