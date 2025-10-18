@@ -120,7 +120,6 @@
       .product-tab-bar {
         display: flex;
         gap: 12px;
-        margin-bottom: 20px;
         flex-wrap: wrap;
       }
 
@@ -151,33 +150,46 @@
         display: none !important;
       }
 
-      .product-body {
+      .product-primary {
         display: flex;
+        flex-wrap: wrap;
         gap: 24px;
-        align-items: flex-start;
-        flex-wrap: nowrap;
+        align-items: stretch;
       }
 
-      .product-controls {
-        flex: 1 1 300px;
-        max-width: 340px;
+      .product-controls-card {
+        flex: 0 1 320px;
         min-width: 260px;
         display: flex;
         flex-direction: column;
         gap: 18px;
+        padding: 24px 26px;
       }
 
-      .product-visual {
-        flex: 2 1 480px;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
+      .product-controls-card .controls {
         gap: 18px;
       }
 
-      .product-visual.full-width {
-        flex: 1 1 100%;
-        max-width: 100%;
+      .primary-chart {
+        flex: 1 1 560px;
+        min-width: 320px;
+        padding: 24px 26px;
+      }
+
+      .product-secondary {
+        margin-top: 22px;
+        display: flex;
+        gap: 24px;
+      }
+
+      .product-secondary > * {
+        flex: 1 1 auto;
+      }
+
+      .projection-hero {
+        padding: 24px 28px;
+        display: grid;
+        gap: 20px;
       }
 
       .projection-header {
@@ -185,7 +197,21 @@
         flex-wrap: wrap;
         gap: 18px;
         align-items: flex-end;
-        margin-bottom: 24px;
+        margin-bottom: 0;
+      }
+
+      .projection-submenu {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(120, 143, 255, 0.12);
+      }
+
+      .projection-submenu .product-tab-bar {
+        margin: 0;
       }
 
       .secret-wrapper {
@@ -221,7 +247,7 @@
         flex-wrap: wrap;
         gap: 18px;
         align-items: flex-end;
-        justify-content: flex-end;
+        justify-content: space-between;
       }
 
       .projection-actions .projection-archetypes {
@@ -1032,16 +1058,16 @@
           align-items: flex-start;
         }
 
-        .product-body {
+        .product-primary {
           flex-direction: column;
         }
 
-        .product-controls,
-        .product-visual {
+        .product-controls-card,
+        .primary-chart {
           max-width: 100%;
           flex: 1 1 100%;
+          min-width: 0;
         }
-      }
       }
 
 

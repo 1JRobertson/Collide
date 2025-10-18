@@ -47,110 +47,74 @@
     </div>
     <div class="app">
       <main class="visual-panel">
-        <section class="projection-header projection-only">
-          <div class="projection-title">
-            <h1>Collide Size Distribution Explorer</h1>
-            <p>
-              Apply an archetype or tune the skew-normal profile for hoodies and shirts independently. The
-              size index runs from 4XL (0) to YM (9).
-            </p>
+        <section class="panel-card projection-hero projection-only">
+          <div class="projection-header">
+            <div class="projection-title">
+              <h1>Collide Size Distribution Explorer</h1>
+              <p>
+                Apply an archetype or tune the skew-normal profile for hoodies and shirts independently.
+                The size index runs from 4XL (0) to YM (9).
+              </p>
+            </div>
+            <div class="projection-actions">
+              <div class="projection-archetypes">
+                <span class="archetype-label">Archetype</span>
+                <div class="archetype-buttons">
+                  <button class="archetype-button" data-archetype="youth-hockey">Youth Hockey</button>
+                </div>
+              </div>
+              <div class="projection-shared-controls">
+                <div class="control" data-group="shared" data-key="teams">
+                  <label class="control-label" for="teams-range"># Teams</label>
+                  <input
+                    id="teams-range"
+                    type="range"
+                    min="0"
+                    max="250"
+                    step="1"
+                    value="24"
+                  />
+                  <input id="teams-input" class="value-input" type="number" step="1" min="0" max="250" value="24" />
+                </div>
+                <div class="control" data-group="shared" data-key="addon5APS">
+                  <label class="control-label" for="addon5-range">Add-On $5 APS</label>
+                  <input
+                    id="addon5-range"
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.01"
+                    value="0.00"
+                  />
+                  <input id="addon5-input" class="value-input" type="number" step="0.01" min="0" max="5" value="0.00" />
+                </div>
+                <div class="control" data-group="shared" data-key="addon10APS">
+                  <label class="control-label" for="addon10-range">Add-On $10 APS</label>
+                  <input
+                    id="addon10-range"
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.01"
+                    value="0.00"
+                  />
+                  <input id="addon10-input" class="value-input" type="number" step="0.01" min="0" max="2" value="0.00" />
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="projection-actions">
-            <div class="projection-archetypes">
-              <span class="archetype-label">Archetype</span>
-              <div class="archetype-buttons">
-                <button class="archetype-button" data-archetype="youth-hockey">Youth Hockey</button>
-              </div>
-            </div>
-            <div class="projection-shared-controls">
-              <div class="control" data-group="shared" data-key="teams">
-                <label class="control-label" for="teams-range"># Teams</label>
-                <input
-                  id="teams-range"
-                  type="range"
-                  min="0"
-                  max="250"
-                  step="1"
-                  value="24"
-                />
-                <input id="teams-input" class="value-input" type="number" step="1" min="0" max="250" value="24" />
-              </div>
-              <div class="control" data-group="shared" data-key="addon5APS">
-                <label class="control-label" for="addon5-range">Add-On $5 APS</label>
-                <input
-                  id="addon5-range"
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.01"
-                  value="0.00"
-                />
-                <input id="addon5-input" class="value-input" type="number" step="0.01" min="0" max="5" value="0.00" />
-              </div>
-              <div class="control" data-group="shared" data-key="addon10APS">
-                <label class="control-label" for="addon10-range">Add-On $10 APS</label>
-                <input
-                  id="addon10-range"
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.01"
-                  value="0.00"
-                />
-                <input id="addon10-input" class="value-input" type="number" step="0.01" min="0" max="2" value="0.00" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel-card projection-only">
-          <div class="summary-grid projection-summary">
-            <div class="metric">
-              <span>Teams</span>
-              <strong data-metric="teams">24</strong>
-            </div>
-            <div class="metric">
-              <span>Hoodie SPT</span>
-              <strong data-metric="hoodieSpt">3.00</strong>
-            </div>
-            <div class="metric">
-              <span>Shirt SPT</span>
-              <strong data-metric="shirtSpt">1.00</strong>
-            </div>
-            <div class="metric">
-              <span>Hoodies</span>
-              <strong data-metric="hoodieTotal">72</strong>
-            </div>
-            <div class="metric">
-              <span>Shirts</span>
-              <strong data-metric="shirtTotal">24</strong>
-            </div>
-            <div class="metric">
-              <span>Total Units</span>
-              <strong data-metric="combinedTotal">96</strong>
-            </div>
-            <div class="metric">
-              <span>Add-On $5</span>
-              <strong data-metric="addon5Units">0.00</strong>
-              <small>Expected Units</small>
-            </div>
-            <div class="metric">
-              <span>Add-On $10</span>
-              <strong data-metric="addon10Units">0.00</strong>
-              <small>Expected Units</small>
+          <div class="projection-submenu">
+            <div class="product-tab-bar">
+              <button class="product-tab-button active" data-product-tab-button="hoodie">Hoodies</button>
+              <button class="product-tab-button" data-product-tab-button="shirt">Shirts</button>
+              <button class="product-tab-button" data-product-tab-button="allocation">Allocation</button>
             </div>
           </div>
         </section>
-
-                <div class="product-tab-bar projection-only">
-          <button class="product-tab-button active" data-product-tab-button="hoodie">Hoodies</button>
-          <button class="product-tab-button" data-product-tab-button="shirt">Shirts</button>
-          <button class="product-tab-button" data-product-tab-button="allocation">Allocation</button>
-        </div>
 
         <section class="product-panel projection-only" data-product-tab="hoodie">
-          <div class="product-body">
-            <div class="product-controls">
+          <div class="product-primary">
+            <aside class="panel-card product-controls-card">
               <section class="control-section" data-product="hoodie">
                 <div class="section-heading">
                   <h2 class="section-title">Hoodie Curve</h2>
@@ -191,32 +155,32 @@
                   </div>
                 </div>
               </section>
-              <div class="color-panel hoodie-color-panel">
-                <div>
-                  <h2>Hoodie Color Mix</h2>
-                  <p>Black holds 50% of production. Add up to three extras; the remainder splits evenly.</p>
-                </div>
-                <div class="color-input-row">
-                  <input id="hoodie-color-entry" type="text" placeholder="Add color (e.g. Navy)" maxlength="32" />
-                  <button id="hoodie-add-color" class="action-button" type="button">Add</button>
-                </div>
-                <div class="color-note" id="hoodie-color-note">Black accounts for 50% by default.</div>
-                <div class="color-chip-list" id="hoodie-color-list"></div>
+            </aside>
+            <section class="panel-card chart-card primary-chart">
+              <h2>Hoodie Size Curve</h2>
+              <canvas id="hoodie-curve-chart" width="1100" height="360"></canvas>
+              <div class="legend" id="hoodie-legend"></div>
+            </section>
+          </div>
+          <div class="product-secondary">
+            <div class="color-panel hoodie-color-panel">
+              <div>
+                <h2>Hoodie Color Mix</h2>
+                <p>Black holds 50% of production. Add up to three extras; the remainder splits evenly.</p>
               </div>
-            </div>
-            <div class="product-visual">
-              <section class="panel-card chart-card">
-                <h2>Hoodie Size Curve</h2>
-                <canvas id="hoodie-curve-chart" width="1100" height="360"></canvas>
-                <div class="legend" id="hoodie-legend"></div>
-              </section>
+              <div class="color-input-row">
+                <input id="hoodie-color-entry" type="text" placeholder="Add color (e.g. Navy)" maxlength="32" />
+                <button id="hoodie-add-color" class="action-button" type="button">Add</button>
+              </div>
+              <div class="color-note" id="hoodie-color-note">Black accounts for 50% by default.</div>
+              <div class="color-chip-list" id="hoodie-color-list"></div>
             </div>
           </div>
         </section>
 
         <section class="product-panel projection-only hidden" data-product-tab="shirt">
-          <div class="product-body">
-            <div class="product-controls">
+          <div class="product-primary">
+            <aside class="panel-card product-controls-card">
               <section class="control-section" data-product="shirt">
                 <div class="section-heading">
                   <h2 class="section-title">Shirt Curve</h2>
@@ -257,55 +221,90 @@
                   </div>
                 </div>
               </section>
-              <div class="color-panel shirt-color-panel">
-                <div>
-                  <h2>Shirt Color Mix</h2>
-                  <p>Colors split evenly across the listed options. Add as many as needed.</p>
-                </div>
-                <div class="color-input-row">
-                  <input id="shirt-color-entry" type="text" placeholder="Add color (e.g. White)" maxlength="32" />
-                  <button id="shirt-add-color" class="action-button" type="button">Add</button>
-                </div>
-                <div class="color-note" id="shirt-color-note">Add colors to split the total evenly.</div>
-                <div class="color-chip-list" id="shirt-color-list"></div>
+            </aside>
+            <section class="panel-card chart-card primary-chart">
+              <h2>Shirt Size Curve</h2>
+              <canvas id="shirt-curve-chart" width="1100" height="360"></canvas>
+              <div class="legend" id="shirt-legend"></div>
+            </section>
+          </div>
+          <div class="product-secondary">
+            <div class="color-panel shirt-color-panel">
+              <div>
+                <h2>Shirt Color Mix</h2>
+                <p>Colors split evenly across the listed options. Add as many as needed.</p>
               </div>
-            </div>
-            <div class="product-visual">
-              <section class="panel-card chart-card">
-                <h2>Shirt Size Curve</h2>
-                <canvas id="shirt-curve-chart" width="1100" height="360"></canvas>
-                <div class="legend" id="shirt-legend"></div>
-              </section>
+              <div class="color-input-row">
+                <input id="shirt-color-entry" type="text" placeholder="Add color (e.g. White)" maxlength="32" />
+                <button id="shirt-add-color" class="action-button" type="button">Add</button>
+              </div>
+              <div class="color-note" id="shirt-color-note">Add colors to split the total evenly.</div>
+              <div class="color-chip-list" id="shirt-color-list"></div>
             </div>
           </div>
         </section>
 
         <section class="product-panel projection-only hidden" data-product-tab="allocation">
-          <div class="product-body">
-            <div class="product-visual full-width">
-              <section class="panel-card allocation-card">
-                <div class="allocation-header">
-                  <div>
-                    <h2>Size &amp; Color Allocation</h2>
-                    <p>Counts rounded to whole units per size and color.</p>
-                  </div>
-                  <button id="export-button" class="action-button" type="button">Export CSV</button>
-                </div>
-                <div class="allocation-table-container">
-                  <table id="allocation-table" class="allocation-table">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Size</th>
-                        <th>Total</th>
-                        <th>Color</th>
-                        <th>Units</th>
-                      </tr>
-                    </thead>
-                    <tbody></tbody>
-                  </table>
-                </div>
-              </section>
+          <section class="panel-card allocation-card">
+            <div class="allocation-header">
+              <div>
+                <h2>Size &amp; Color Allocation</h2>
+                <p>Counts rounded to whole units per size and color.</p>
+              </div>
+              <button id="export-button" class="action-button" type="button">Export CSV</button>
+            </div>
+            <div class="allocation-table-container">
+              <table id="allocation-table" class="allocation-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Size</th>
+                    <th>Total</th>
+                    <th>Color</th>
+                    <th>Units</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="panel-card projection-only projection-summary-card">
+          <div class="summary-grid projection-summary">
+            <div class="metric">
+              <span>Teams</span>
+              <strong data-metric="teams">24</strong>
+            </div>
+            <div class="metric">
+              <span>Hoodie SPT</span>
+              <strong data-metric="hoodieSpt">3.00</strong>
+            </div>
+            <div class="metric">
+              <span>Shirt SPT</span>
+              <strong data-metric="shirtSpt">1.00</strong>
+            </div>
+            <div class="metric">
+              <span>Hoodies</span>
+              <strong data-metric="hoodieTotal">72</strong>
+            </div>
+            <div class="metric">
+              <span>Shirts</span>
+              <strong data-metric="shirtTotal">24</strong>
+            </div>
+            <div class="metric">
+              <span>Total Units</span>
+              <strong data-metric="combinedTotal">96</strong>
+            </div>
+            <div class="metric">
+              <span>Add-On $5</span>
+              <strong data-metric="addon5Units">0.00</strong>
+              <small>Expected Units</small>
+            </div>
+            <div class="metric">
+              <span>Add-On $10</span>
+              <strong data-metric="addon10Units">0.00</strong>
+              <small>Expected Units</small>
             </div>
           </div>
         </section>
