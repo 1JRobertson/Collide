@@ -847,8 +847,7 @@ export function updateSyncFetchDisplay() {
 export function initProjection() {
   setupControlHandlers();
 
-  const savedProductTab = safeReadStorage(APP_STORAGE_KEYS.productTab);
-  setActiveProductTab(savedProductTab || "hoodie", { persist: false });
+  setActiveProductTab("hoodie", { persist: false });
 
   const savedTab = safeReadStorage(APP_STORAGE_KEYS.activeTab);
   if (savedTab) {
