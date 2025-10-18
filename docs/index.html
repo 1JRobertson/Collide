@@ -7,6 +7,40 @@
     <link rel="stylesheet" href="./styles/main.css" />
   </head>
   <body data-active-tab="projection">
+    <div class="welcome-overlay" data-auth-overlay>
+      <div class="welcome-card">
+        <div class="welcome-header">
+          <h1>Connect to Collide</h1>
+          <p>Paste your Apps Script web app link and shared secret to load live data.</p>
+        </div>
+        <form class="welcome-form" data-auth-form>
+          <label class="welcome-field">
+            <span class="field-label">Apps Script Web App URL</span>
+            <input
+              type="url"
+              name="scriptUrl"
+              placeholder="https://script.google.com/..."
+              required
+              data-auth-url
+            />
+          </label>
+          <label class="welcome-field">
+            <span class="field-label">Shared Secret Token</span>
+            <input
+              type="password"
+              name="secret"
+              placeholder="Enter shared secret"
+              autocomplete="off"
+              required
+              data-auth-secret
+            />
+          </label>
+          <p class="welcome-feedback hidden" data-auth-feedback></p>
+          <button class="welcome-submit" type="submit">Enter Workspace</button>
+        </form>
+      </div>
+    </div>
+
     <div class="tab-bar">
       <button class="tab-button active" data-tab-button="projection">Size Curve</button>
       <button class="tab-button" data-tab-button="transactions">Square Transactions</button>
@@ -281,22 +315,15 @@
               <h2>Event Sales Explorer</h2>
               <p>Visualize actual hoodie, shirt, and add-on performance by event.</p>
             </div>
+            <input id="event-source-url" type="hidden" />
+            <input id="event-secret" type="hidden" />
             <div class="event-actions">
-              <div class="url-wrapper">
-                <label class="url-label" for="event-source-url">Apps Script web app URL</label>
-                <input id="event-source-url" type="url" placeholder="Paste URL and lock" />
-              </div>
-              <div class="secret-wrapper">
-                <label class="secret-label" for="event-secret">Shared Secret</label>
-                <input id="event-secret" type="password" placeholder="Enter secret" />
-              </div>
               <button id="event-sync-button" class="action-button secondary" type="button">Sync Square</button>
               <button id="event-load-button" class="action-button" type="button">Fetch Data</button>
               <button id="event-load-sample" class="action-button secondary" type="button">Use Sample Data</button>
-              <button id="event-lock-url" class="action-button secondary" type="button">Lock</button>
             </div>
           </div>
-          <div id="event-status" class="event-status">Paste an Apps Script data URL or load the sample dataset.</div>
+          <div id="event-status" class="event-status">Use Fetch Data once connected or load the sample dataset.</div>
           <div class="event-meta">
             <span>Last Sync: <strong data-sync-timestamp>--</strong></span>
             <span>Last Fetch: <strong data-fetch-timestamp>--</strong></span>

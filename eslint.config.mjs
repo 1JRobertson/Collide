@@ -14,7 +14,9 @@ export default [
         Blob: "readonly",
         setTimeout: "readonly",
         fetch: "readonly",
-        AbortController: "readonly"
+        AbortController: "readonly",
+        Event: "readonly",
+        HTMLInputElement: "readonly"
       }
     },
     rules: {

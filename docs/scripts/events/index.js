@@ -123,8 +123,9 @@ function setUrlLocked(locked) {
   if (!eventElements.sourceInput) {
     return;
   }
+  const hasUi = Boolean(eventElements.urlWrapper || eventElements.lockButton);
   eventElements.sourceInput.readOnly = locked;
-  if (locked) {
+  if (locked && hasUi) {
     eventElements.sourceInput.blur();
   }
   if (eventElements.urlWrapper) {
@@ -136,11 +137,17 @@ function setUrlLocked(locked) {
   if (locked) {
     recomputeEventUrls();
     safeWriteStorage(APP_STORAGE_KEYS.urlLocked, '1');
-    setEventStatus('URL locked. Use Sync or Fetch when you are ready.', 'info');
+    if (hasUi) {
+      setEventStatus('URL locked. Use Sync or Fetch when you are ready.', 'info');
+    }
   } else {
     eventState.urls = null;
     safeWriteStorage(APP_STORAGE_KEYS.urlLocked, '');
-    setEventStatus('URL unlocked. You can paste a new Apps Script link.', 'info');
+    if (hasUi) {
+      setEventStatus('URL unlocked. You can paste a new Apps Script link.', 'info');
+    } else {
+      recomputeEventUrls();
+    }
   }
 }
 
@@ -673,22 +680,43 @@ async function syncSquare() {
   }
 }
 
-async function fetchSquareData({ statusMessage } = {}) {
+export async function verifyEventCredentials({ baseUrl, secret, statusMessage } = {}) {
+  const normalizedUrl = baseUrl ? normalizeBaseUrl(baseUrl) : '';
+  const trimmedSecret = secret ? secret.trim() : '';
+  const result = await hydrateFromUrl(buildActionUrl(normalizedUrl, 'fetch', trimmedSecret), {
+    statusMessage: statusMessage || 'Verifying credentials with Apps Script...'
+  });
+  if (!result || !result.ok) {
+    if (!result) {
+      console.error('Credential verification failed with unknown result');
+      return { ok: false, error: 'Verification failed: Unknown error.', normalizedUrl, secret: trimmedSecret };
+    }
+    return { ...result, normalizedUrl, secret: trimmedSecret };
+  }
+  return { ok: true, normalizedUrl, secret: trimmedSecret };
+}
+
+export async function fetchSquareData({ statusMessage } = {}) {
   if (!ensureSecretProvided()) {
-    return;
+    return { ok: false, error: 'Enter the shared secret before continuing.' };
   }
   const fetchUrl = getActionUrl('fetch');
   if (!fetchUrl) {
-    setEventStatus('Enter the Apps Script web app URL first.', 'error');
-    return;
+    const message = 'Enter the Apps Script web app URL first.';
+    setEventStatus(message, 'error');
+    return { ok: false, error: message };
   }
-  try {
-    await hydrateFromUrl(fetchUrl, { statusMessage: statusMessage || 'Fetching event data...' });
-  } catch (error) {
-    console.error('Fetch sequence failed', error);
-    setEventLoading('fetch', false);
-    setEventStatus(`Fetch failed: ${error.message}`, 'error');
+  const result = await hydrateFromUrl(fetchUrl, { statusMessage: statusMessage || 'Fetching event data...' });
+  if (!result || !result.ok) {
+    if (!result) {
+      console.error('Fetch sequence failed with unknown result');
+      const message = 'Fetch failed: Unknown error.';
+      setEventStatus(message, 'error');
+      return { ok: false, error: message };
+    }
+    return result;
   }
+  return result;
 }
 
 const FETCH_TIMEOUT_MS = 20000;
@@ -696,18 +724,21 @@ const FETCH_TIMEOUT_MS = 20000;
 async function hydrateFromUrl(rawUrl, { skipLoadingToggle = false, statusMessage } = {}) {
   const url = rawUrl ? rawUrl.trim() : "";
   if (!url) {
-    setEventStatus("Enter the Apps Script web app URL first.", "error");
-    return;
+    const message = "Enter the Apps Script web app URL first.";
+    setEventStatus(message, "error");
+    return { ok: false, error: message };
   }
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      setEventStatus("Use an http or https URL.", "error");
-      return;
+      const message = "Use an http or https URL.";
+      setEventStatus(message, "error");
+      return { ok: false, error: message };
     }
   } catch {
-    setEventStatus("Enter a valid URL to load data.", "error");
-    return;
+    const message = "Enter a valid URL to load data.";
+    setEventStatus(message, "error");
+    return { ok: false, error: message };
   }
 
   if (!skipLoadingToggle) {
@@ -730,7 +761,31 @@ async function hydrateFromUrl(rawUrl, { skipLoadingToggle = false, statusMessage
       window.clearTimeout(abortTimeout);
     }
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      let errorMessage = `${response.status} ${response.statusText || ''}`.trim();
+      let responseText = '';
+      try {
+        responseText = await response.text();
+      } catch {
+        // ignore body read errors
+      }
+      if (!errorMessage) {
+        errorMessage = 'Request failed';
+      }
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      if (responseText) {
+        error.responseText = responseText;
+        try {
+          const parsed = JSON.parse(responseText);
+          const hint = parsed?.error || parsed?.message || parsed?.statusText;
+          if (typeof hint === 'string' && hint.trim()) {
+            error.responseHint = hint.trim();
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+      throw error;
     }
     const contentType = response.headers.get("content-type") || "";
     let payload;
@@ -751,11 +806,42 @@ async function hydrateFromUrl(rawUrl, { skipLoadingToggle = false, statusMessage
     if (base) {
       safeWriteStorage(EVENT_STORAGE_KEYS.source, base);
     }
+    return { ok: true };
   } catch (error) {
     console.error(error);
     const isAbort = error && (error.name === 'AbortError' || error.message === 'The user aborted a request.');
-    const message = isAbort ? 'Fetch timed out. Try again or verify the Apps Script deployment.' : `Failed to load data: ${error.message}`;
+    let message;
+    let code;
+    if (isAbort) {
+      message = 'Fetch timed out. Try again or verify the Apps Script deployment.';
+      code = 'timeout';
+    } else {
+      const status = typeof error?.status === 'number' ? error.status : null;
+      if (status === 401 || status === 403) {
+        message = 'Authentication failed. Confirm the Apps Script URL and shared secret token.';
+        code = 'unauthorized';
+      } else if (status === 404) {
+        message = 'Could not reach that Apps Script deployment. Confirm the URL is correct and published.';
+        code = 'not_found';
+      } else if (status >= 500 && status < 600) {
+        message = 'Apps Script returned an error. Try again or review the deployment logs.';
+        code = 'server_error';
+      } else if (typeof error?.responseHint === 'string' && error.responseHint) {
+        message = error.responseHint;
+      } else if (typeof error?.responseText === 'string' && error.responseText) {
+        const trimmed = error.responseText.trim();
+        if (trimmed) {
+          message = trimmed.length <= 140 ? trimmed : `${trimmed.slice(0, 137)}...`;
+        }
+      }
+      if (!message) {
+        const baseMessage = typeof error?.message === 'string' && error.message ? error.message : 'Unknown error.';
+        message = `Failed to load data: ${baseMessage}`;
+      }
+    }
     setEventStatus(message, "error");
+    const status = typeof error?.status === 'number' ? error.status : undefined;
+    return { ok: false, error: message, status, code };
   } finally {
     if (abortTimeout !== null) {
       window.clearTimeout(abortTimeout);
@@ -779,15 +865,17 @@ function initializeEventExplorer() {
     eventElements.sourceInput.value = savedSource;
   }
   const savedSecret = safeReadStorage(EVENT_STORAGE_KEYS.secret);
-  const savedLock = safeReadStorage(APP_STORAGE_KEYS.urlLocked) === '1';
-  if (savedLock && typeof savedSecret === 'string') {
+  if (typeof savedSecret === 'string') {
     if (eventElements.secretInput) {
       eventElements.secretInput.value = savedSecret;
     }
     setSecretValue(savedSecret, { persist: false });
-    setUrlLocked(true);
-  } else {
-    setUrlLocked(false);
+  }
+  const savedLock = safeReadStorage(APP_STORAGE_KEYS.urlLocked) === '1';
+  if (eventElements.lockButton || eventElements.urlWrapper) {
+    setUrlLocked(Boolean(savedLock));
+  } else if (savedSource) {
+    recomputeEventUrls();
   }
   const savedEventId = safeReadStorage(EVENT_STORAGE_KEYS.eventId);
   if (savedEventId) {

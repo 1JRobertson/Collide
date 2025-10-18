@@ -1043,3 +1043,139 @@
         }
       }
       }
+
+
+      body:not([data-authenticated="true"]) .tab-bar,
+      body:not([data-authenticated="true"]) .app {
+        display: none;
+      }
+
+
+      .welcome-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(7, 10, 24, 0.92);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 20px;
+        z-index: 999;
+      }
+
+      .welcome-overlay.hidden {
+        display: none !important;
+      }
+
+      .welcome-card {
+        width: min(420px, 100%);
+        padding: 32px 28px;
+        border-radius: 20px;
+        border: 1px solid rgba(128, 149, 255, 0.28);
+        background: linear-gradient(145deg, rgba(21, 26, 48, 0.96), rgba(26, 18, 56, 0.92));
+        box-shadow: 0 28px 80px rgba(5, 8, 18, 0.55);
+        display: grid;
+        gap: 24px;
+        text-align: center;
+      }
+
+      .welcome-header h1 {
+        margin: 0;
+        font-size: 1.9rem;
+        letter-spacing: 0.04em;
+      }
+
+      .welcome-header p {
+        margin: 0;
+        color: rgba(198, 207, 255, 0.85);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+      .welcome-feedback {
+        margin: -6px 0 0;
+        min-height: 1.2em;
+        color: rgba(190, 203, 255, 0.9);
+        font-size: 0.82rem;
+        letter-spacing: 0.02em;
+        text-align: left;
+      }
+      .welcome-feedback[data-tone="info"] {
+        color: rgba(190, 203, 255, 0.9);
+      }
+
+      .welcome-feedback[data-tone="error"] {
+        color: #ff9f9f;
+      }
+
+      .welcome-feedback[data-tone="success"] {
+        color: #9fffc5;
+      }
+
+
+
+      .welcome-sign-in,
+      .welcome-submit {
+        appearance: none;
+        border: none;
+        border-radius: 999px;
+        padding: 12px 24px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: #0b0e1c;
+        background: linear-gradient(135deg, rgba(151, 167, 255, 1), rgba(174, 123, 255, 1));
+        box-shadow: 0 12px 28px rgba(41, 57, 136, 0.45);
+        transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+      }
+
+      .welcome-sign-in:hover,
+      .welcome-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 36px rgba(41, 57, 136, 0.55);
+        filter: brightness(1.02);
+      }
+
+      .welcome-sign-in:focus-visible,
+      .welcome-submit:focus-visible {
+        outline: 2px solid rgba(197, 214, 255, 0.85);
+        outline-offset: 3px;
+      }
+
+      .welcome-form {
+        display: grid;
+        gap: 18px;
+        text-align: left;
+      }
+
+      .welcome-field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(160, 176, 255, 0.8);
+      }
+
+      .welcome-field input {
+        width: 100%;
+        appearance: none;
+        border: 1px solid rgba(128, 149, 255, 0.35);
+        border-radius: 12px;
+        background: rgba(11, 16, 32, 0.9);
+        color: #f4f6ff;
+        padding: 12px 14px;
+        font-size: 0.95rem;
+        transition: border 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .welcome-field input:focus {
+        outline: none;
+        border-color: rgba(164, 182, 255, 0.75);
+        box-shadow: 0 0 0 3px rgba(119, 137, 255, 0.25);
+      }
