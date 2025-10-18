@@ -125,6 +125,12 @@ export function setActiveTab(tab, { persist = true } = {}) {
     button.classList.toggle("active", button.dataset.tabButton === target);
   });
   projectionNodes.forEach((node) => {
+    if (node.dataset.productTab) {
+      if (target !== "projection") {
+        node.classList.add("hidden");
+      }
+      return;
+    }
     node.classList.toggle("hidden", target !== "projection");
   });
   transactionNodes.forEach((node) => {
