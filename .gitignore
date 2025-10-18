@@ -6,6 +6,8 @@ Context/
 *.pem
 *.p12
 *.json
+!package.json
+!package-lock.json
 secrets/
 private/
 config/
