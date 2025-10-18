@@ -855,7 +855,7 @@ export function initProjection() {
   if (savedArchetype && ARCHETYPE_PRESETS[savedArchetype]) {
     applyArchetype(savedArchetype);
   } else {
-    recompute();
+    applyArchetype("youth-hockey");
   }
 
   if (allocationExportButton) {

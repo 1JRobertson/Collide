@@ -42,8 +42,8 @@ export const PRODUCTS = {
 export const ARCHETYPE_PRESETS = {
   "youth-hockey": {
     label: "Youth Hockey",
-    hoodie: { mean: 6.24, sigma: 1.53, skew: -0.8, spt: 3 },
-    shirt: { mean: 7.66, sigma: 2.25, skew: -0.87, spt: 1 },
+    hoodie: { mean: 6.24, sigma: 1.53, skew: -0.8, spt: 2 },
+    shirt: { mean: 7.66, sigma: 2.25, skew: -0.87, spt: 0.5 },
     shared: { addon5APS: 1.75, addon10APS: 0.5 }
   }
 };
