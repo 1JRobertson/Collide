@@ -26,21 +26,51 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.fill();
 }
 
+function prepareCanvas(canvasEl) {
+  if (!canvasEl) {
+    return null;
+  }
+  const displayWidth = canvasEl.clientWidth || canvasEl.width || 0;
+  const displayHeight = canvasEl.clientHeight || canvasEl.height || 0;
+  if (!displayWidth || !displayHeight) {
+    return null;
+  }
+  const dpr = typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
+  const width = Math.max(1, Math.round(displayWidth * dpr));
+  const height = Math.max(1, Math.round(displayHeight * dpr));
+  if (canvasEl.width !== width || canvasEl.height !== height) {
+    canvasEl.width = width;
+    canvasEl.height = height;
+  }
+  const ctx = canvasEl.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+  if (typeof ctx.resetTransform === "function") {
+    ctx.resetTransform();
+  }
+  ctx.scale(dpr, dpr);
+  return {
+    ctx,
+    width: displayWidth || canvasEl.width,
+    height: displayHeight || canvasEl.height
+  };
+}
+
 export function drawHistogram(
   canvasEl,
   counts,
-  { percentages = [], yLabel = "units", colors, barRadius = 12 } = {}
+  { percentages = [], yLabel = "units", colors, barRadius = 12, labels = SIZES } = {}
 ) {
   if (!canvasEl || !Array.isArray(counts) || counts.length === 0) {
     return;
   }
-  const ctx = canvasEl.getContext("2d");
-  if (!ctx) {
+  const prepared = prepareCanvas(canvasEl);
+  if (!prepared) {
     return;
   }
+  const { ctx, width, height } = prepared;
 
-  const width = canvasEl.width;
-  const height = canvasEl.height;
   ctx.clearRect(0, 0, width, height);
 
   const margin = { top: 36, right: 40, bottom: 70, left: 72 };
@@ -119,7 +149,8 @@ export function drawHistogram(
     ctx.save();
     ctx.translate(x, originY + 18);
     ctx.rotate(-Math.PI / 18);
-    ctx.fillText(SIZES[index], 0, 0);
+    const axisLabel = labels[index] || labels[labels.length - 1] || "";
+    ctx.fillText(axisLabel, 0, 0);
     ctx.restore();
   });
 }

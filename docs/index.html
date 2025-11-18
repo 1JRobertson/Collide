@@ -169,7 +169,7 @@
                 <button id="hoodie-add-color" class="action-button" type="button">Add</button>
               </div>
               <div class="color-note" id="hoodie-color-note">Black accounts for 50% by default.</div>
-              <div class="color-chip-list" id="hoodie-color-list"></div>
+              <div class="color-mix-list" id="hoodie-color-list"></div>
             </div>
           </div>
         </section>
@@ -235,7 +235,7 @@
                 <button id="shirt-add-color" class="action-button" type="button">Add</button>
               </div>
               <div class="color-note" id="shirt-color-note">Add colors to split the total evenly.</div>
-              <div class="color-chip-list" id="shirt-color-list"></div>
+              <div class="color-mix-list" id="shirt-color-list"></div>
             </div>
           </div>
         </section>
@@ -328,6 +328,25 @@
               <label for="event-selector">Select Event</label>
               <select id="event-selector"></select>
             </div>
+            <div class="event-product-controls">
+              <span class="control-label">Item View</span>
+              <div class="product-toggle-group">
+                <button class="product-toggle" type="button" data-event-product-button="hoodie">Classic Hoodie</button>
+                <button class="product-toggle" type="button" data-event-product-button="shirt">Classic Shirt</button>
+              </div>
+              <label class="product-other">
+                <span class="field-label">Other Items</span>
+                <select data-event-product-other>
+                  <option value="">Select item</option>
+                </select>
+              </label>
+              <label class="product-compare">
+                <span class="field-label">Compare With</span>
+                <select data-event-product-compare>
+                  <option value="">No comparison</option>
+                </select>
+              </label>
+            </div>
           </div>
           <div class="summary-grid event-summary">
             <div class="metric">
@@ -360,35 +379,54 @@
             </div>
           </div>
           <div class="event-chart-grid">
-            <div class="event-chart-card">
-              <h3>Classic Hoodies</h3>
-              <canvas id="event-hoodie-chart" width="520" height="340"></canvas>
+            <div class="event-chart-card" data-event-product-card>
+              <h3 data-event-product-title>Item Size Distribution</h3>
+              <canvas id="event-product-chart" width="520" height="340"></canvas>
             </div>
-            <div class="event-chart-card">
-              <h3>Classic Shirts</h3>
-              <canvas id="event-shirt-chart" width="520" height="340"></canvas>
+            <div class="event-chart-card hidden" data-event-compare-card>
+              <h3 data-event-compare-title>Comparison Size Distribution</h3>
+              <canvas id="event-compare-chart" width="520" height="340"></canvas>
             </div>
           </div>
-          <div class="event-table">
-            <table id="event-size-table">
-              <thead>
-                <tr>
-                  <th>Size</th>
-                  <th>Hoodies</th>
-                  <th>Shirts</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-              <tfoot>
-                <tr>
-                  <td>Total</td>
-                  <td data-event-total="hoodies">0</td>
-                  <td data-event-total="shirts">0</td>
-                  <td data-event-total="combined">0</td>
-                </tr>
-              </tfoot>
-            </table>
+          <div class="event-table-grid">
+            <div class="event-table" data-event-product-table-wrapper>
+              <table id="event-product-table">
+                <thead>
+                  <tr>
+                    <th>Size</th>
+                    <th>Units</th>
+                    <th>Share</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total</td>
+                    <td data-event-product-total>0</td>
+                    <td data-event-product-share>100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="event-table hidden" data-event-compare-wrapper>
+              <table id="event-compare-table">
+                <thead>
+                  <tr>
+                    <th>Size</th>
+                    <th>Units</th>
+                    <th>Share</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total</td>
+                    <td data-event-compare-total>0</td>
+                    <td data-event-compare-share>100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </section>
 

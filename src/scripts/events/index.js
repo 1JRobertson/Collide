@@ -4,8 +4,10 @@ import {
   EVENT_STORAGE_KEYS,
   PRODUCT_KEYWORDS,
   SIZE_ALIASES,
+  SIZE_PHRASE_PATTERNS,
   SIZE_SYNONYMS,
-  SIZES
+  SIZES,
+  EXACT_SIZE_LABELS
 } from "../constants.js";
 import { eventLoadingState, eventState } from "../state.js";
 import { setActiveTab, updateSyncFetchDisplay } from "../projection/index.js";
@@ -25,9 +27,23 @@ const eventElements = {
   status: document.getElementById("event-status"),
   eventSelect: document.getElementById("event-selector"),
   urlWrapper: document.querySelector('.url-wrapper'),
-  hoodieCanvas: document.getElementById("event-hoodie-chart"),
-  shirtCanvas: document.getElementById("event-shirt-chart"),
-  tableBody: document.querySelector("#event-size-table tbody"),
+  productButtons: document.querySelectorAll("[data-event-product-button]"),
+  productOtherSelect: document.querySelector("[data-event-product-other]"),
+  productCompareSelect: document.querySelector("[data-event-product-compare]"),
+  productChart: document.getElementById("event-product-chart"),
+  productChartTitle: document.querySelector("[data-event-product-title]"),
+  productChartCard: document.querySelector("[data-event-product-card]"),
+  productTableWrapper: document.querySelector("[data-event-product-table-wrapper]"),
+  productTableBody: document.querySelector("#event-product-table tbody"),
+  productTotalCell: document.querySelector("[data-event-product-total]"),
+  productShareCell: document.querySelector("[data-event-product-share]"),
+  compareChart: document.getElementById("event-compare-chart"),
+  compareChartTitle: document.querySelector("[data-event-compare-title]"),
+  compareChartCard: document.querySelector("[data-event-compare-card]"),
+  compareTableWrapper: document.querySelector("[data-event-compare-wrapper]"),
+  compareTableBody: document.querySelector("#event-compare-table tbody"),
+  compareTotalCell: document.querySelector("[data-event-compare-total]"),
+  compareShareCell: document.querySelector("[data-event-compare-share]"),
   metricDisplays: {
     hoodies: document.querySelector('[data-event-metric="hoodies"]'),
     shirts: document.querySelector('[data-event-metric="shirts"]'),
@@ -35,11 +51,29 @@ const eventElements = {
     addon10: document.querySelector('[data-event-metric="addon10"]'),
     addon5APS: document.querySelector('[data-event-metric="addon5APS"]'),
     addon10APS: document.querySelector('[data-event-metric="addon10APS"]')
+  }
+};
+
+const productViews = {
+  primary: {
+    chart: eventElements.productChart,
+    title: eventElements.productChartTitle,
+    tableBody: eventElements.productTableBody,
+    totalCell: eventElements.productTotalCell,
+    shareCell: eventElements.productShareCell,
+    card: eventElements.productChartCard,
+    tableWrapper: eventElements.productTableWrapper,
+    defaultTitle: "Item Size Distribution"
   },
-  totalDisplays: {
-    hoodies: document.querySelector('[data-event-total="hoodies"]'),
-    shirts: document.querySelector('[data-event-total="shirts"]'),
-    combined: document.querySelector('[data-event-total="combined"]')
+  compare: {
+    chart: eventElements.compareChart,
+    title: eventElements.compareChartTitle,
+    tableBody: eventElements.compareTableBody,
+    totalCell: eventElements.compareTotalCell,
+    shareCell: eventElements.compareShareCell,
+    card: eventElements.compareChartCard,
+    tableWrapper: eventElements.compareTableWrapper,
+    defaultTitle: "Comparison Size Distribution"
   }
 };
 
@@ -51,6 +85,316 @@ function flashButton(button, { duration = 200 } = {}) {
   window.setTimeout(() => {
     button.classList.remove('is-pressed');
   }, duration);
+}
+
+const STANDARD_PRODUCT_LABELS = {
+  hoodie: "Classic Hoodie",
+  shirt: "Classic Shirt",
+  addon5: "Add-On $5",
+  addon10: "Add-On $10"
+};
+
+function normalizeDisplayValue(value, fallback = "") {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  const text = String(value).trim();
+  return text || fallback;
+}
+
+function slugifyLabel(label) {
+  return label
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function resolveProductLabel(productType, itemValue, variationValue) {
+  const canonical = STANDARD_PRODUCT_LABELS[productType];
+  const itemLabel = normalizeDisplayValue(itemValue, "");
+  const variationLabel = normalizeDisplayValue(variationValue, "");
+  if (canonical) {
+    return canonical;
+  }
+  if (itemLabel) {
+    return itemLabel;
+  }
+  if (variationLabel) {
+    return variationLabel;
+  }
+  return "Other Item";
+}
+
+function resolveRawLabel(itemValue, variationValue, fallback) {
+  const itemLabel = normalizeDisplayValue(itemValue, "");
+  if (itemLabel) {
+    return itemLabel;
+  }
+  const variationLabel = normalizeDisplayValue(variationValue, "");
+  if (variationLabel) {
+    return variationLabel;
+  }
+  return fallback;
+}
+
+function buildProductKey(productType, label) {
+  if (productType === "hoodie" || productType === "shirt" || productType === "addon5" || productType === "addon10") {
+    return productType;
+  }
+  const normalized = label.toLowerCase().replace(/\s+/g, " ").trim();
+  const slug = normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "item";
+  return `other:${slug}`;
+}
+
+function buildVariantKey(productType, label) {
+  const slug = slugifyLabel(label) || productType;
+  return `variant:${productType}:${slug}`;
+}
+
+function shouldTrackVariant(productType, canonicalLabel, rawLabel) {
+  if (!rawLabel) {
+    return false;
+  }
+  if (!canonicalLabel) {
+    return false;
+  }
+  const canonicalNormalized = canonicalLabel.toLowerCase();
+  const actualNormalized = rawLabel.toLowerCase();
+  return canonicalNormalized !== actualNormalized;
+}
+
+function ensureProductSummary(record, key, label, type = "other") {
+  if (!record.products.has(key)) {
+    record.products.set(key, {
+      key,
+      label,
+      type,
+      counts: Array(SIZES.length).fill(0),
+      total: 0,
+      hasSizes: false
+    });
+  }
+  return record.products.get(key);
+}
+
+function getSelectedEventRecord() {
+  return eventState.events.find((event) => event.id === eventState.selectedEventId) || null;
+}
+
+function ensureSelectedProduct(record) {
+  if (!record || !record.products) {
+    eventState.selectedProductKey = "";
+    return "";
+  }
+  const currentKey = eventState.selectedProductKey;
+  if (currentKey && record.products.has(currentKey)) {
+    const summary = record.products.get(currentKey);
+    if (summary && summary.total > 0) {
+      return currentKey;
+    }
+  }
+  const preferred = ["hoodie", "shirt"];
+  for (const key of preferred) {
+    const summary = record.products.get(key);
+    if (summary && summary.total > 0) {
+      eventState.selectedProductKey = key;
+      return key;
+    }
+  }
+  for (const product of record.products.values()) {
+    if (product.total > 0) {
+      eventState.selectedProductKey = product.key;
+      return product.key;
+    }
+  }
+  eventState.selectedProductKey = "";
+  return "";
+}
+
+function buildProductDisplayData(product) {
+  if (!product) {
+    return { counts: [], labels: [] };
+  }
+  if (product.hasSizes && product.counts.some((value) => value > 0)) {
+    return { counts: product.counts, labels: SIZES };
+  }
+  if (product.total > 0) {
+    return { counts: [product.total], labels: ["Units"] };
+  }
+  return { counts: [], labels: [] };
+}
+
+function renderProductViewForKey(record, productKey, view, { hideWhenEmpty = false } = {}) {
+  if (!record || !productKey) {
+    renderProductPlaceholder("Select an item to view size data.", view, { hideContainer: hideWhenEmpty });
+    return;
+  }
+  const product = record.products.get(productKey);
+  if (!product || product.total <= 0) {
+    renderProductPlaceholder("No data for that item.", view, { hideContainer: hideWhenEmpty });
+    return;
+  }
+  if (view.card) {
+    view.card.classList.remove("hidden");
+  }
+  if (view.tableWrapper) {
+    view.tableWrapper.classList.remove("hidden");
+  }
+  if (view.title) {
+    view.title.textContent = `${product.label} Size Distribution`;
+  }
+  const { counts, labels } = buildProductDisplayData(product);
+  if (!counts.length || !labels.length) {
+    renderProductPlaceholder("No size detail available for this item.", view, { hideContainer: hideWhenEmpty });
+    return;
+  }
+  const percentages = shareByIndex(counts);
+  drawHistogram(view.chart, counts, {
+    percentages,
+    yLabel: "units",
+    colors: getProductColors(product),
+    labels
+  });
+  renderProductTable(labels, counts, percentages, view);
+  const totalUnits = counts.reduce((acc, value) => acc + value, 0);
+  if (view.totalCell) {
+    view.totalCell.textContent = formatInteger(totalUnits);
+  }
+  if (view.shareCell) {
+    view.shareCell.textContent = totalUnits > 0 ? "100%" : "--";
+  }
+}
+
+function getProductColors(product) {
+  if (!product) {
+    return {};
+  }
+  if (product.key === "hoodie") {
+    return { from: "rgba(119, 167, 255, 0.95)", to: "rgba(80, 122, 255, 0.82)" };
+  }
+  if (product.key === "shirt") {
+    return { from: "rgba(255, 166, 133, 0.9)", to: "rgba(232, 112, 134, 0.82)" };
+  }
+  return { from: "rgba(132, 247, 222, 0.9)", to: "rgba(72, 201, 176, 0.8)" };
+}
+
+function renderSelectedProduct(record) {
+  if (!record) {
+    renderProductPlaceholder("Select an event to view item data.", productViews.primary);
+    renderProductPlaceholder("Select an item to compare.", productViews.compare, { hideContainer: true });
+    return;
+  }
+  const selectedKey = ensureSelectedProduct(record);
+  if (!selectedKey) {
+    renderProductPlaceholder("No items available for this event.", productViews.primary);
+    renderProductPlaceholder("Select an item to compare.", productViews.compare, { hideContainer: true });
+    return;
+  }
+  renderProductViewForKey(record, selectedKey, productViews.primary);
+  renderComparisonProduct(record);
+}
+
+function renderComparisonProduct(record) {
+  if (!record) {
+    renderProductPlaceholder("Select an item to compare.", productViews.compare, { hideContainer: true });
+    return;
+  }
+  const compareKey = eventState.compareProductKey;
+  if (!compareKey) {
+    renderProductPlaceholder("Select an item to compare.", productViews.compare, { hideContainer: true });
+    return;
+  }
+  renderProductViewForKey(record, compareKey, productViews.compare, { hideWhenEmpty: false });
+}
+
+function updateProductControls(record, { resetOtherSelect = false } = {}) {
+  const selectedKey = eventState.selectedProductKey;
+  if (eventElements.productButtons && eventElements.productButtons.length) {
+    eventElements.productButtons.forEach((button) => {
+      const key = button.dataset.eventProductButton;
+      if (!key) {
+        return;
+      }
+      const summary = record?.products?.get(key);
+      const hasData = Boolean(summary && summary.total > 0);
+      button.disabled = !hasData;
+      button.classList.toggle("is-active", hasData && key === selectedKey);
+    });
+  }
+  const otherSelect = eventElements.productOtherSelect;
+  if (otherSelect) {
+    const options = [];
+    if (record?.products) {
+      record.products.forEach((product, key) => {
+        if (key !== "hoodie" && key !== "shirt" && product.total > 0) {
+          options.push(product);
+        }
+      });
+    }
+    options.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    otherSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = options.length ? "Select item" : "No other items";
+    otherSelect.appendChild(placeholder);
+    options.forEach((product) => {
+      const option = document.createElement("option");
+      option.value = product.key;
+      option.textContent = product.label;
+      otherSelect.appendChild(option);
+    });
+    otherSelect.disabled = options.length === 0;
+    if (selectedKey && options.some((product) => product.key === selectedKey)) {
+      otherSelect.value = selectedKey;
+    } else if (resetOtherSelect || selectedKey === "hoodie" || selectedKey === "shirt") {
+      otherSelect.value = "";
+    }
+  }
+  const compareSelect = eventElements.productCompareSelect;
+  if (compareSelect) {
+    const compareOptions = [];
+    if (record?.products) {
+      record.products.forEach((product) => {
+        if (product.total > 0) {
+          compareOptions.push(product);
+        }
+      });
+    }
+    compareOptions.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    compareSelect.innerHTML = "";
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = compareOptions.length ? "No comparison" : "No items available";
+    compareSelect.appendChild(defaultOption);
+    compareOptions.forEach((product) => {
+      const option = document.createElement("option");
+      option.value = product.key;
+      option.textContent = product.label;
+      compareSelect.appendChild(option);
+    });
+    const hasExisting = compareOptions.some((product) => product.key === eventState.compareProductKey);
+    compareSelect.disabled = compareOptions.length === 0;
+    if (eventState.compareProductKey && hasExisting) {
+      compareSelect.value = eventState.compareProductKey;
+    } else {
+      compareSelect.value = "";
+      if (!hasExisting) {
+        eventState.compareProductKey = "";
+      }
+    }
+  }
+}
+
+function refreshProductVisualization(record, { resetOtherSelect = false } = {}) {
+  if (!record) {
+    renderEventPlaceholder("Select an event to view item data.");
+    return;
+  }
+  ensureSelectedProduct(record);
+  updateProductControls(record, { resetOtherSelect });
+  renderSelectedProduct(record);
 }
 
 function recomputeEventUrls() {
@@ -246,6 +590,10 @@ function normalizeSizeValue(value) {
   if (!str) {
     return null;
   }
+  const normalizedExact = str.replace(/\s+/g, " ").toUpperCase();
+  if (Object.prototype.hasOwnProperty.call(EXACT_SIZE_LABELS, normalizedExact)) {
+    return EXACT_SIZE_LABELS[normalizedExact];
+  }
   const direct = str.toUpperCase();
   if (SIZES.includes(direct)) {
     return direct;
@@ -258,10 +606,9 @@ function normalizeSizeValue(value) {
   if (SIZE_SYNONYMS[collapsed]) {
     return SIZE_SYNONYMS[collapsed];
   }
-  for (const size of SIZES) {
-    if (lower.includes(size.toLowerCase())) {
-      return size;
-    }
+  const phraseMatch = SIZE_PHRASE_PATTERNS.find(({ regex }) => regex.test(lower));
+  if (phraseMatch) {
+    return phraseMatch.value;
   }
   const tokens = lower.split(/[^a-z0-9]+/).filter(Boolean);
   for (const token of tokens) {
@@ -275,6 +622,11 @@ function normalizeSizeValue(value) {
     const upperToken = token.toUpperCase();
     if (SIZES.includes(upperToken)) {
       return upperToken;
+    }
+  }
+  for (const size of SIZES) {
+    if (lower.includes(size.toLowerCase())) {
+      return size;
     }
   }
   return null;
@@ -389,6 +741,7 @@ function buildEventRecords(rows) {
         id: eventKey,
         name: eventName,
         category,
+        products: new Map(),
         hoodies: { counts: Array(SIZES.length).fill(0), total: 0 },
         shirts: { counts: Array(SIZES.length).fill(0), total: 0 },
         addOn5: 0,
@@ -415,6 +768,20 @@ function buildEventRecords(rows) {
       latest = timestamp;
     }
 
+    const productLabel = resolveProductLabel(productType, itemValue, variationValue);
+    const rawLabel = resolveRawLabel(itemValue, variationValue, productLabel);
+    const productKey = buildProductKey(productType, productLabel);
+    const productSummary = ensureProductSummary(record, productKey, productLabel, productType || "other");
+    let variantSummary = null;
+    const canonicalLabel = STANDARD_PRODUCT_LABELS[productType];
+    if (
+      (productType === "hoodie" || productType === "shirt") &&
+      shouldTrackVariant(productType, canonicalLabel, rawLabel)
+    ) {
+      const variantKey = buildVariantKey(productType, rawLabel);
+      variantSummary = ensureProductSummary(record, variantKey, rawLabel, "variant");
+    }
+
     if (productType === "hoodie" || productType === "shirt") {
       if (!sizeValue || quantity === 0) {
         return;
@@ -425,11 +792,39 @@ function buildEventRecords(rows) {
         bucket.counts[index] += quantity;
         bucket.total += quantity;
         record.totalUnits += quantity;
+        productSummary.counts[index] += quantity;
+        productSummary.total += quantity;
+        productSummary.hasSizes = true;
+        if (variantSummary) {
+          variantSummary.counts[index] += quantity;
+          variantSummary.total += quantity;
+          variantSummary.hasSizes = true;
+        }
       }
-    } else if (productType === "addon5") {
+      return;
+    }
+
+    if (productType === "addon5") {
       record.addOn5 += quantity;
     } else if (productType === "addon10") {
       record.addOn10 += quantity;
+    }
+
+    if (quantity === 0) {
+      return;
+    }
+    const index = sizeValue ? SIZES.indexOf(sizeValue) : -1;
+    if (index >= 0) {
+      productSummary.counts[index] += quantity;
+      productSummary.hasSizes = true;
+      if (variantSummary) {
+        variantSummary.counts[index] += quantity;
+        variantSummary.hasSizes = true;
+      }
+    }
+    productSummary.total += quantity;
+    if (variantSummary) {
+      variantSummary.total += quantity;
     }
   });
 
@@ -464,6 +859,64 @@ function shareByIndex(counts) {
   return counts.map((value) => (value > 0 ? value / total : 0));
 }
 
+function renderProductPlaceholder(message, view, { hideContainer = false } = {}) {
+  if (!view) {
+    return;
+  }
+  const { tableBody, totalCell, shareCell, chart, card, tableWrapper, title } = view;
+  if (card) {
+    card.classList.toggle("hidden", hideContainer);
+  }
+  if (tableWrapper) {
+    tableWrapper.classList.toggle("hidden", hideContainer);
+  }
+  if (tableBody) {
+    tableBody.innerHTML = "";
+    if (!hideContainer) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 3;
+      cell.className = "event-empty";
+      cell.textContent = message;
+      row.appendChild(cell);
+      tableBody.appendChild(row);
+    }
+  }
+  if (totalCell) {
+    totalCell.textContent = "0";
+  }
+  if (shareCell) {
+    shareCell.textContent = "--";
+  }
+  if (title && !hideContainer) {
+    title.textContent = view.defaultTitle || "Item Size Distribution";
+  }
+  clearCanvas(chart);
+}
+
+function renderProductTable(labels, counts, percentages, view) {
+  if (!view || !view.tableBody) {
+    return;
+  }
+  const tbody = view.tableBody;
+  tbody.innerHTML = "";
+  labels.forEach((label, index) => {
+    const tr = document.createElement("tr");
+    const sizeCell = document.createElement("td");
+    sizeCell.textContent = label;
+    sizeCell.style.fontWeight = "600";
+    const unitsCell = document.createElement("td");
+    unitsCell.textContent = formatInteger(counts[index] || 0);
+    const shareCell = document.createElement("td");
+    const share = percentages[index] || 0;
+    shareCell.textContent = share > 0 ? `${(share * 100).toFixed(1)}%` : "0%";
+    tr.appendChild(sizeCell);
+    tr.appendChild(unitsCell);
+    tr.appendChild(shareCell);
+    tbody.appendChild(tr);
+  });
+}
+
 function cleanEventName(value) {
   if (!value && value !== 0) {
     return "";
@@ -480,18 +933,8 @@ function cleanEventName(value) {
 
 function renderEventPlaceholder(message) {
   resetEventMetrics();
-  if (eventElements.tableBody) {
-    eventElements.tableBody.innerHTML = "";
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 4;
-    cell.className = "event-empty";
-    cell.textContent = message;
-    row.appendChild(cell);
-    eventElements.tableBody.appendChild(row);
-  }
-  clearCanvas(eventElements.hoodieCanvas);
-  clearCanvas(eventElements.shirtCanvas);
+  renderProductPlaceholder(message, productViews.primary);
+  renderProductPlaceholder("Select an item to compare.", productViews.compare, { hideContainer: true });
 }
 
 function resetEventMetrics() {
@@ -502,38 +945,6 @@ function resetEventMetrics() {
   if (metrics.addon10) metrics.addon10.textContent = "0";
   if (metrics.addon5APS) metrics.addon5APS.textContent = "0.00";
   if (metrics.addon10APS) metrics.addon10APS.textContent = "0.00";
-  const totals = eventElements.totalDisplays;
-  if (totals.hoodies) totals.hoodies.textContent = "0";
-  if (totals.shirts) totals.shirts.textContent = "0";
-  if (totals.combined) totals.combined.textContent = "0";
-}
-
-function renderEventTableRows(record) {
-  if (!eventElements.tableBody) {
-    return;
-  }
-  eventElements.tableBody.innerHTML = "";
-  SIZES.forEach((size, index) => {
-    const hoodieCount = record.hoodies.counts[index] || 0;
-    const shirtCount = record.shirts.counts[index] || 0;
-    const total = hoodieCount + shirtCount;
-    const tr = document.createElement("tr");
-    const cells = [
-      size,
-      formatInteger(hoodieCount),
-      formatInteger(shirtCount),
-      formatInteger(total)
-    ];
-    cells.forEach((value, cellIndex) => {
-      const td = document.createElement("td");
-      td.textContent = value;
-      if (cellIndex === 0) {
-        td.style.fontWeight = "600";
-      }
-      tr.appendChild(td);
-    });
-    eventElements.tableBody.appendChild(tr);
-  });
 }
 
 function populateEventOptions(shouldRender = true) {
@@ -549,7 +960,7 @@ function populateEventOptions(shouldRender = true) {
     option.textContent = "No events available";
     select.appendChild(option);
     select.disabled = true;
-    renderEventPlaceholder(eventState.events.length ? "Select an event to view details." : "Load data to see hoodie and shirt distributions.");
+    renderEventPlaceholder(eventState.events.length ? "Select an event to view details." : "Load data to see item size distributions.");
     if (shouldRender) {
       eventState.selectedEventId = "";
     }
@@ -575,7 +986,7 @@ function renderSelectedEvent() {
   const events = eventState.events;
   const record = events.find((event) => event.id === eventState.selectedEventId);
   if (!record) {
-    renderEventPlaceholder(events.length ? "Select an event to view details." : "Load data to see hoodie and shirt distributions.");
+    renderEventPlaceholder(events.length ? "Select an event to view details." : "Load data to see item size distributions.");
     return;
   }
 
@@ -587,25 +998,7 @@ function renderSelectedEvent() {
   if (metrics.addon5APS) metrics.addon5APS.textContent = formatNumber(record.addOn5APS, { decimals: 2 });
   if (metrics.addon10APS) metrics.addon10APS.textContent = formatNumber(record.addOn10APS, { decimals: 2 });
 
-  const totals = eventElements.totalDisplays;
-  if (totals.hoodies) totals.hoodies.textContent = formatInteger(record.hoodies.total);
-  if (totals.shirts) totals.shirts.textContent = formatInteger(record.shirts.total);
-  if (totals.combined) totals.combined.textContent = formatInteger(record.hoodies.total + record.shirts.total);
-
-  renderEventTableRows(record);
-
-  const hoodieShares = shareByIndex(record.hoodies.counts);
-  const shirtShares = shareByIndex(record.shirts.counts);
-  drawHistogram(eventElements.hoodieCanvas, record.hoodies.counts, {
-    percentages: hoodieShares,
-    yLabel: "units",
-    colors: { from: "rgba(119, 167, 255, 0.95)", to: "rgba(80, 122, 255, 0.82)" }
-  });
-  drawHistogram(eventElements.shirtCanvas, record.shirts.counts, {
-    percentages: shirtShares,
-    yLabel: "units",
-    colors: { from: "rgba(255, 166, 133, 0.9)", to: "rgba(232, 112, 134, 0.82)" }
-  });
+  refreshProductVisualization(record);
 
   safeWriteStorage(EVENT_STORAGE_KEYS.eventId, eventState.selectedEventId);
 }
@@ -881,7 +1274,7 @@ function initializeEventExplorer() {
   if (savedEventId) {
     eventState.selectedEventId = savedEventId;
   }
-  renderEventPlaceholder("Load data to see hoodie and shirt distributions.");
+  renderEventPlaceholder("Load data to see item size distributions.");
   if (savedSource && savedSecret && savedLock) {
     fetchSquareData({ statusMessage: 'Loading saved event data...' }).catch((error) => {
       console.error('Initial fetch failed', error);
@@ -932,6 +1325,54 @@ if (eventElements.eventSelect) {
     eventState.selectedEventId = event.target.value || "";
     safeWriteStorage(EVENT_STORAGE_KEYS.eventId, eventState.selectedEventId);
     renderSelectedEvent();
+  });
+}
+
+if (eventElements.productButtons && eventElements.productButtons.length) {
+  eventElements.productButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.eventProductButton;
+      if (!key) {
+        return;
+      }
+      eventState.selectedProductKey = key;
+      const record = getSelectedEventRecord();
+      if (record) {
+        refreshProductVisualization(record, { resetOtherSelect: true });
+      } else {
+        renderProductPlaceholder("Select an event to view item data.");
+      }
+    });
+  });
+}
+
+if (eventElements.productOtherSelect) {
+  eventElements.productOtherSelect.addEventListener("change", (event) => {
+    const value = event.target.value || "";
+    if (!value) {
+      const record = getSelectedEventRecord();
+      if (record) {
+        refreshProductVisualization(record, { resetOtherSelect: true });
+      }
+      return;
+    }
+    eventState.selectedProductKey = value;
+    const record = getSelectedEventRecord();
+    if (record) {
+      refreshProductVisualization(record);
+    }
+  });
+}
+
+if (eventElements.productCompareSelect) {
+  eventElements.productCompareSelect.addEventListener("change", (event) => {
+    eventState.compareProductKey = event.target.value || "";
+    const record = getSelectedEventRecord();
+    if (record) {
+      renderComparisonProduct(record);
+    } else {
+      renderProductPlaceholder("Select an item to compare.", productViews.compare, { hideContainer: true });
+    }
   });
 }
 

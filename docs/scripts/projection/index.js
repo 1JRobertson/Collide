@@ -285,7 +285,14 @@ archetypeButtons.forEach((button) => {
 });
 
 function createColorManager(config) {
-  const state = { extras: [] };
+  const state = {
+    extras: [],
+    weights: {},
+    sliderRefs: new Map(),
+    percentRefs: new Map(),
+    pinned: new Set(),
+    isCustomized: false
+  };
   const entry = document.getElementById(config.entryId);
   const addButton = document.getElementById(config.addButtonId);
   const list = document.getElementById(config.listId);
@@ -295,49 +302,276 @@ function createColorManager(config) {
     return name.trim().replace(/\s+/g, " ");
   }
 
+  function getNames() {
+    const base = config.baseColors || [];
+    return base.concat(state.extras);
+  }
+
+  function computeDefaultWeights(names) {
+    if (!names.length) {
+      return [];
+    }
+    if (config.baseColors.length === 1 && config.baseColors[0] === "Black") {
+      if (names.length === 1) {
+        return [1];
+      }
+      const extraShare = state.extras.length ? 0.5 / state.extras.length : 0;
+      return [0.5, ...state.extras.map(() => extraShare)];
+    }
+    const even = 1 / names.length;
+    return names.map(() => even);
+  }
+
+  function setDefaultWeights() {
+    const names = getNames();
+    const defaults = computeDefaultWeights(names);
+    names.forEach((color, index) => {
+      state.weights[color] = defaults[index] || 0;
+    });
+    state.isCustomized = false;
+    return defaults;
+  }
+
+  function normalizeWeights(names) {
+    if (!names.length) {
+      state.weights = {};
+      return [];
+    }
+    const pinnedColors = names.filter((color) => state.pinned.has(color));
+    const flexibleColors = names.filter((color) => !state.pinned.has(color));
+    const pinnedTotal = pinnedColors.reduce(
+      (acc, color) => acc + Math.max(0, state.weights[color] || 0),
+      0
+    );
+    if (flexibleColors.length === 0) {
+      if (pinnedTotal === 0) {
+        const even = 1 / names.length;
+        names.forEach((color) => {
+          state.weights[color] = even;
+        });
+      } else {
+        const scale = pinnedTotal > 0 ? Math.min(1 / pinnedTotal, 1) : 0;
+        pinnedColors.forEach((color) => {
+          state.weights[color] = Math.max(0, Math.min(1, (state.weights[color] || 0) * scale));
+        });
+      }
+      return names.map((color) => state.weights[color] || 0);
+    }
+    const flexibleValues = flexibleColors.map((color) => Math.max(0, state.weights[color] || 0));
+    const flexibleTotal = flexibleValues.reduce((acc, value) => acc + value, 0);
+    const remaining = Math.max(0, 1 - pinnedTotal);
+    if (remaining <= 0) {
+      flexibleColors.forEach((color) => {
+        state.weights[color] = 0;
+      });
+      return names.map((color) => state.weights[color] || 0);
+    }
+    if (flexibleTotal <= 0) {
+      const evenFlex = remaining / flexibleColors.length;
+      flexibleColors.forEach((color) => {
+        state.weights[color] = evenFlex;
+      });
+    } else {
+      flexibleColors.forEach((color, index) => {
+        const ratio = flexibleValues[index] / flexibleTotal;
+        state.weights[color] = ratio * remaining;
+      });
+    }
+    return names.map((color) => state.weights[color] || 0);
+  }
+
+  function ensureWeights(names) {
+    if (!names.length) {
+      return [];
+    }
+    const hasStored = names.some((color) => typeof state.weights[color] === "number");
+    if (!hasStored) {
+      return setDefaultWeights();
+    }
+    return normalizeWeights(names);
+  }
+
+  function syncColorControls() {
+    const names = getNames();
+    const weights = ensureWeights(names);
+    names.forEach((color, index) => {
+      const percent = Math.round((weights[index] || 0) * 100);
+      const slider = state.sliderRefs.get(color);
+      const percentNode = state.percentRefs.get(color);
+      if (slider) {
+        slider.value = String(percent);
+      }
+      if (percentNode) {
+        percentNode.textContent = `${percent}%`;
+      }
+    });
+  }
+
+  function adjustWeights(targetColor, fraction) {
+    const names = getNames();
+    if (!names.length) {
+      return;
+    }
+    if (names.length === 1) {
+      state.weights[targetColor] = 1;
+      state.isCustomized = true;
+      return;
+    }
+    const pinnedOthers = names.filter((color) => state.pinned.has(color) && color !== targetColor);
+    const flexibleOthers = names.filter((color) => color !== targetColor && !state.pinned.has(color));
+    const pinnedTotal = pinnedOthers.reduce(
+      (acc, color) => acc + Math.max(0, state.weights[color] || 0),
+      0
+    );
+    const maxTarget = Math.max(0, 1 - pinnedTotal);
+    const clamped = Math.min(Math.max(fraction, 0), maxTarget);
+    state.weights[targetColor] = clamped;
+    const remaining = Math.max(0, 1 - pinnedTotal - clamped);
+    if (flexibleOthers.length > 0) {
+      const flexibleTotal = flexibleOthers.reduce(
+        (acc, color) => acc + Math.max(0, state.weights[color] || 0),
+        0
+      );
+      if (flexibleTotal <= 0) {
+        const evenShare = remaining / flexibleOthers.length;
+        flexibleOthers.forEach((color) => {
+          state.weights[color] = evenShare;
+        });
+      } else {
+        flexibleOthers.forEach((color) => {
+          const portion = (state.weights[color] || 0) / flexibleTotal;
+          state.weights[color] = portion * remaining;
+        });
+      }
+    } else if (remaining > 0) {
+      state.weights[targetColor] = Math.min(1, clamped + remaining);
+    }
+    normalizeWeights(names);
+    state.isCustomized = true;
+  }
+
   function updateNote(message, isWarning = false) {
     if (!note) return;
     if (message) {
       note.textContent = message;
     } else if (config.baseColors.length) {
       if (state.extras.length) {
-        note.textContent = `Black is 50%. Remaining 50% split across ${state.extras.length} color(s).`;
+        note.textContent = `Black begins at 50%. Adjust sliders to fine-tune ${state.extras.length} additional color(s).`;
       } else {
         note.textContent = config.noteDefault;
       }
     } else if (state.extras.length) {
-      note.textContent = `Splitting evenly across ${state.extras.length} color(s).`;
+      note.textContent = `Adjust sliders to split evenly across ${state.extras.length} color(s).`;
     } else {
       note.textContent = config.noteDefault;
     }
     note.classList.toggle("warning", isWarning);
   }
 
-  function renderChips() {
-    if (!list) return;
+  function togglePinned(color) {
+    if (state.pinned.has(color)) {
+      state.pinned.delete(color);
+    } else {
+      state.pinned.add(color);
+    }
+    state.isCustomized = true;
+    normalizeWeights(getNames());
+    renderColorControls();
+    updateNote();
+    recompute();
+  }
+
+  function renderColorControls() {
+    if (!list) {
+      return;
+    }
+    const names = getNames();
     list.innerHTML = "";
-    state.extras.forEach((color) => {
-      const chip = document.createElement("span");
-      chip.className = "color-chip";
+    state.sliderRefs.clear();
+    state.percentRefs.clear();
+    if (!names.length) {
+      const empty = document.createElement("p");
+      empty.className = "color-empty-message";
+      empty.textContent = "Add colors to build a mix.";
+      list.appendChild(empty);
+      return;
+    }
+    const weights = ensureWeights(names);
+    names.forEach((color, index) => {
+      const row = document.createElement("div");
+      row.className = "color-mix-row";
+      if (state.pinned.has(color)) {
+        row.classList.add("is-pinned");
+      }
+      const header = document.createElement("div");
+      header.className = "color-mix-header";
+      const labelWrap = document.createElement("div");
+      labelWrap.className = "color-mix-label";
       const swatch = document.createElement("span");
       swatch.className = "swatch";
       swatch.style.background = color;
       const label = document.createElement("span");
       label.textContent = color;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = "Remove";
-      button.addEventListener("click", () => {
-        state.extras = state.extras.filter((value) => value !== color);
-        renderChips();
+      labelWrap.appendChild(swatch);
+      labelWrap.appendChild(label);
+      const controls = document.createElement("div");
+      controls.className = "color-mix-controls";
+      const percentNode = document.createElement("span");
+      percentNode.className = "color-mix-percent";
+      percentNode.textContent = `${Math.round((weights[index] || 0) * 100)}%`;
+      const pinButton = document.createElement("button");
+      pinButton.type = "button";
+      pinButton.className = "color-pin-button";
+      pinButton.dataset.pinned = state.pinned.has(color) ? "true" : "false";
+      pinButton.textContent = state.pinned.has(color) ? "Pinned" : "Pin %";
+      pinButton.addEventListener("click", () => {
+        togglePinned(color);
+      });
+      controls.appendChild(percentNode);
+      controls.appendChild(pinButton);
+      header.appendChild(labelWrap);
+      header.appendChild(controls);
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0";
+      slider.max = "100";
+      slider.step = "1";
+      slider.value = String(Math.round((weights[index] || 0) * 100));
+      slider.disabled = state.pinned.has(color);
+      slider.addEventListener("input", (event) => {
+        const percentValue = Number(event.target.value);
+        adjustWeights(color, percentValue / 100);
+        syncColorControls();
         updateNote();
         recompute();
       });
-      chip.appendChild(swatch);
-      chip.appendChild(label);
-      chip.appendChild(button);
-      list.appendChild(chip);
+      row.appendChild(header);
+      row.appendChild(slider);
+      if (state.extras.includes(color)) {
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "color-remove-button";
+        removeButton.textContent = "Remove";
+        removeButton.addEventListener("click", () => {
+          state.extras = state.extras.filter((value) => value !== color);
+          state.pinned.delete(color);
+          delete state.weights[color];
+          if (state.isCustomized) {
+            normalizeWeights(getNames());
+          } else {
+            setDefaultWeights();
+          }
+          renderColorControls();
+          updateNote();
+          recompute();
+        });
+        row.appendChild(removeButton);
+      }
+      list.appendChild(row);
+      state.sliderRefs.set(color, slider);
+      state.percentRefs.set(color, percentNode);
     });
+    syncColorControls();
   }
 
   function handleAdd() {
@@ -357,8 +591,15 @@ function createColorManager(config) {
     }
     state.extras = [...state.extras, raw];
     entry.value = "";
+    state.pinned.delete(raw);
+    if (state.isCustomized) {
+      state.weights[raw] = 0;
+      normalizeWeights(getNames());
+    } else {
+      setDefaultWeights();
+    }
     updateNote();
-    renderChips();
+    renderColorControls();
     recompute();
   }
 
@@ -374,28 +615,19 @@ function createColorManager(config) {
     });
   }
 
+  setDefaultWeights();
   updateNote();
+  renderColorControls();
 
   return {
     config,
-    getNames() {
-      const base = config.baseColors || [];
-      return base.concat(state.extras);
-    },
+    getNames,
     getWeights() {
-      const names = this.getNames();
+      const names = getNames();
       if (!names.length) {
         return [];
       }
-      if (config.baseColors.length === 1 && config.baseColors[0] === "Black") {
-        if (!state.extras.length) {
-          return [1];
-        }
-        const extraShare = 0.5 / state.extras.length;
-        return [0.5, ...state.extras.map(() => extraShare)];
-      }
-      const weight = 1 / names.length;
-      return names.map(() => weight);
+      return ensureWeights(names);
     }
   };
 }

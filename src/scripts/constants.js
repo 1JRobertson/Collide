@@ -97,8 +97,8 @@ export const EVENT_FIELD_HINTS = {
 };
 
 export const PRODUCT_KEYWORDS = {
-  hoodie: ["classic hoodie"],
-  shirt: ["classic shirt"],
+  hoodie: ["classic hoodie", "hoodie"],
+  shirt: ["classic shirt", "shirt"],
   addon5: ["add on $5", "add-on $5", "add-on 5", "add-ons $5", "addon $5", "addon 5"],
   addon10: ["add on $10", "add-on $10", "add-on 10", "add-ons $10", "addon $10", "addon 10"]
 };
@@ -159,3 +159,31 @@ export const SIZE_SYNONYMS = {
   "youth m": "YM",
   "youth medium": "YM"
 };
+
+export const EXACT_SIZE_LABELS = {
+  "YOUTH MEDIUM": "YM",
+  "YOUTH LARGE": "YL",
+  "YOUTH EXTRA LARGE": "YXL",
+  SMALL: "S",
+  MEDIUM: "M",
+  LARGE: "L",
+  "EXTRA LARGE": "XL",
+  "2XL": "2XL",
+  "3XL": "3XL",
+  "4XL": "4XL"
+};
+
+const separatorPattern = /[\s/+-]*?/.source;
+
+export const SIZE_PHRASE_PATTERNS = [
+  { regex: new RegExp(`\\byouth${separatorPattern}extra${separatorPattern}large\\b`), value: "YXL" },
+  { regex: new RegExp(`\\byouth${separatorPattern}large\\b`), value: "YL" },
+  { regex: new RegExp(`\\byouth${separatorPattern}medium\\b`), value: "YM" },
+  { regex: new RegExp(`\\b(?:adult${separatorPattern})?extra${separatorPattern}large\\b`), value: "XL" },
+  { regex: new RegExp(`\\b(?:adult${separatorPattern})?large\\b`), value: "L" },
+  { regex: new RegExp(`\\b(?:adult${separatorPattern})?medium\\b`), value: "M" },
+  { regex: new RegExp(`\\b(?:adult${separatorPattern})?small\\b`), value: "S" },
+  { regex: /\b4[\s/+-]*xl\b/, value: "4XL" },
+  { regex: /\b3[\s/+-]*xl\b/, value: "3XL" },
+  { regex: /\b2[\s/+-]*xl\b/, value: "2XL" }
+];
