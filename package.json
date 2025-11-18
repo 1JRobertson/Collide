@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "serve": "node scripts/serve.mjs",
+    "dev": "npm run build && npm run serve"
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",
